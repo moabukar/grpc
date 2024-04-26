@@ -16,7 +16,7 @@ func (s *Store) Migrate() error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file:///migrations",
+		"file:///Users/mohameda/Documents/Learning/grpc/migrations",
 		"postgres",
 		driver,
 	)

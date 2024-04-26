@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 	"github.com/moabukar/grpc/internal/rocket"
 	uuid "github.com/satori/go.uuid"
 )
@@ -17,19 +18,25 @@ type Store struct {
 
 // New - returns a new store or error
 func New() (Store, error) {
-	dbUsername := os.Getenv("DB_USERNAME")
-	dbPassword := os.Getenv("DB_PASSWORD")
+	// Load .env file
+	err := godotenv.Load(".env")
+	if err != nil {
+		return Store{}, fmt.Errorf("error loading .env file: %v", err)
+	}
+
+	dbUsername := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASS")
 	dbHost := os.Getenv("DB_HOST")
-	dbTable := os.Getenv("DB_TABLE")
+	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
-	dbSSLMode := os.Getenv("DB_SSL_MODE")
+	dbSSLMode := os.Getenv("DB_SSLMODE")
 
 	connectionString := fmt.Sprintf(
 		"host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
 		dbHost,
 		dbPort,
 		dbUsername,
-		dbTable,
+		dbName,
 		dbPassword,
 		dbSSLMode,
 	)
@@ -38,9 +45,7 @@ func New() (Store, error) {
 	if err != nil {
 		return Store{}, err
 	}
-	return Store{
-		db: db,
-	}, nil
+	return Store{db: db}, nil
 }
 
 // GetRocketByID - retrieves a rocket from the database by id

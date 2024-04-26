@@ -10,6 +10,7 @@ import (
 	rkt "github.com/TutorialEdge/tutorial-protos/rocket/v1"
 	"github.com/google/uuid"
 	"github.com/moabukar/grpc/internal/rocket"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -36,7 +37,9 @@ func New(rktService RocketService) Handler {
 }
 
 func (h Handler) Serve() error {
-	lis, err := net.Listen("tcp", ":50051")
+	address := ":50051" // Ensure this is dynamically set if necessary
+	log.Printf("Attempting to listen on %s", address)
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Print("could not listen on port 50051")
 		return err
@@ -57,19 +60,29 @@ func (h Handler) Serve() error {
 func (h Handler) GetRocket(ctx context.Context, req *rkt.GetRocketRequest) (*rkt.GetRocketResponse, error) {
 	log.Print("Get Rocket gRPC Endpoint Hit")
 
-	if _, err := uuid.Parse(req.Id); err != nil {
-		log.Print("Given UUID is not valid")
+	_, err := uuid.Parse(req.Id)
+	if err != nil {
+		log.Printf("Given UUID is not valid: %v", err)
 		errorStatus := status.New(codes.InvalidArgument, "UUID is not valid")
-		details, err := errorStatus.WithDetails(
-			"UUID is not valid",
-		)
+		details, err := errorStatus.WithDetails(&errdetails.BadRequest{
+			FieldViolations: []*errdetails.BadRequest_FieldViolation{
+				{
+					Field:       "id",
+					Description: "UUID is not valid",
+				},
+			},
+		})
+		if err != nil {
+			log.Printf("Error adding details to error status: %v", err)
+			return &rkt.GetRocketResponse{}, err
+		}
 		return &rkt.GetRocketResponse{}, details.Err()
 	}
 
 	rocket, err := h.RocketService.GetRocketByID(ctx, req.Id)
 	if err != nil {
-		log.Print("Failed to retrieve rocket by ID")
-		return &rkt.GetRocketResponse{}, err
+		log.Printf("Failed to retrieve rocket by ID: %v", err)
+		return &rkt.GetRocketResponse{}, status.Error(codes.Internal, "internal server error")
 	}
 
 	return &rkt.GetRocketResponse{
